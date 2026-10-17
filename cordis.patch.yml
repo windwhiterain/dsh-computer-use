@@ -5,22 +5,33 @@
     - id: computer-use
       name: '@deepseek-ai/dsh-computer-use'
 
+# The browser-use seam is the same case and takes the same position: the provider
+# registers into `ctx.browserUse`, which a preset-scoped provider can still read.
+# The shared service stores only the provider name, so it is safe to mount beside
+# computer use — the two seams hold separate names and arbitrate nothing.
+- insert:
+    - id: browser-use
+      name: '@deepseek-ai/dsh-browser-use'
+
 # A new agent preset, not an override of a shipped one. A preset is a complete
 # agent composition rather than a delta, so this list is the `standard` preset
-# verbatim plus the Cua Driver native provider. `standard`, `ptc`, `minimal`,
-# `cordis` and the profile's own `whiting` keep exactly the tool sets they had;
-# only a session that picks this preset sees `cua_driver_native__*` tools.
+# verbatim plus the Cua Driver native provider and the Playwright browser
+# provider. `standard`, `ptc`, `minimal`, `cordis` and the profile's own `whiting`
+# keep exactly the tool sets they had; only a session that picks this preset sees
+# the `cua_driver_native__*` and `mcp__playwright-mcp__*` tools.
 #
-# The provider contributes the tools and the native runtime. Its computer-use
-# registration stays exclusive, so mounting a second provider in the same
-# process fails with `cua-driver-native` rather than silently replacing it.
+# The providers contribute the tools and their runtimes. Each registration stays
+# exclusive, so mounting a second provider for the same seam in one process fails
+# with the provider name rather than silently replacing it. The two seams do not
+# coordinate: one desktop and one browser belong to whoever is driving them, so
+# run a desktop workflow and a browser workflow at a time rather than together.
 - insert:
     - id: preset-computer-use
       name: '@deepseek-ai/dsh-agent-preset'
       config:
         id: computer-use
         name: Computer Use
-        description: The standard tool set plus Cua Driver native computer-use tools for the host desktop.
+        description: The standard tool set plus Cua Driver native computer-use tools for the host desktop and Playwright browser tools for Chromium.
         order: 30
         plugins:
           - id: persona
@@ -160,3 +171,24 @@
           # declares image input and an attachment store is mounted.
           - id: cua-driver-native
             name: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'
+
+          # ── browser use ──────────────────────────────────────────────────────────────
+
+          # Playwright's own browser-control MCP server, pinned at @playwright/mcp
+          # 0.0.80 with its playwright 1.63.0-alpha Chromium. `launch` gives each
+          # live Session its own browser and the tools come from MCP discovery, so
+          # their schemas and descriptions follow the pinned server rather than
+          # this preset. No `executablePath`: the server is launched as
+          # `--browser chromium`, which is the bundled build `playwright install
+          # chromium` provides, and pointing it at another Chromium build is what
+          # `executablePath` would change.
+          #
+          # `toolCallTimeoutMs` exceeds the 60 s MCP default because a navigation
+          # to a slow site is a normal outcome, and a timeout would report it as a
+          # failed call the model then retries.
+          - id: browser-use-playwright-mcp
+            name: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp'
+            config:
+              mode: launch
+              headless: true
+              toolCallTimeoutMs: 120000
