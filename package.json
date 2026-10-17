@@ -1,0 +1,8 @@
+{
+  "name": "@local/dsh-computer-use",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A separate agent preset that adds Cua Driver native computer-use tools to the standard tool set, leaving every built-in preset untouched.",
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}
